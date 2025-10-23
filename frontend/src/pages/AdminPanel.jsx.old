@@ -1,0 +1,264 @@
+import { useState, useEffect } from 'react';
+import api from '../api/axios';
+
+const AdminPanel = () => {
+  const [activeTab, setActiveTab] = useState('products');
+  const [products, setProducts] = useState([]);
+  const [orders, setOrders] = useState([]);
+  const [categories, setCategories] = useState([]);
+  const [loading, setLoading] = useState(false);
+
+  // Form states
+  const [productForm, setProductForm] = useState({
+    name: '',
+    description: '',
+    price: '',
+    stock: '',
+    category: '',
+  });
+
+  useEffect(() => {
+    if (activeTab === 'products') {
+      fetchProducts();
+      fetchCategories();
+    } else if (activeTab === 'orders') {
+      fetchOrders();
+    }
+  }, [activeTab]);
+
+  const fetchProducts = async () => {
+    try {
+      setLoading(true);
+      const response = await api.get('/products/');
+      setProducts(response.data.results || response.data);
+    } catch (error) {
+      console.error('Erro ao carregar produtos:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchOrders = async () => {
+    try {
+      setLoading(true);
+      const response = await api.get('/orders/');
+      setOrders(response.data.results || response.data);
+    } catch (error) {
+      console.error('Erro ao carregar pedidos:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchCategories = async () => {
+    try {
+      const response = await api.get('/products/categories/');
+      setCategories(response.data.results || response.data);
+    } catch (error) {
+      console.error('Erro ao carregar categorias:', error);
+    }
+  };
+
+  const handleCreateProduct = async (e) => {
+    e.preventDefault();
+    try {
+      await api.post('/products/', productForm);
+      alert('Produto criado com sucesso!');
+      setProductForm({ name: '', description: '', price: '', stock: '', category: '' });
+      fetchProducts();
+    } catch (error) {
+      console.error('Erro ao criar produto:', error);
+      alert('Erro ao criar produto');
+    }
+  };
+
+  const handleUpdateOrderStatus = async (orderId, newStatus) => {
+    try {
+      await api.post(`/orders/${orderId}/update_status/`, { status: newStatus });
+      alert('Status atualizado!');
+      fetchOrders();
+    } catch (error) {
+      console.error('Erro ao atualizar status:', error);
+      alert('Erro ao atualizar status');
+    }
+  };
+
+  return (
+    <div className="container mx-auto px-4 py-8">
+      <h1 className="text-3xl font-bold mb-8">Painel Administrativo</h1>
+
+      <div className="mb-6">
+        <div className="flex gap-4 border-b">
+          <button
+            onClick={() => setActiveTab('products')}
+            className={`px-4 py-2 font-semibold ${
+              activeTab === 'products'
+                ? 'border-b-2 border-primary-600 text-primary-600'
+                : 'text-gray-600'
+            }`}
+          >
+            Produtos
+          </button>
+          <button
+            onClick={() => setActiveTab('orders')}
+            className={`px-4 py-2 font-semibold ${
+              activeTab === 'orders'
+                ? 'border-b-2 border-primary-600 text-primary-600'
+                : 'text-gray-600'
+            }`}
+          >
+            Pedidos
+          </button>
+        </div>
+      </div>
+
+      {activeTab === 'products' && (
+        <div>
+          <div className="bg-white rounded-lg shadow-md p-6 mb-6">
+            <h2 className="text-2xl font-bold mb-4">Adicionar Produto</h2>
+            <form onSubmit={handleCreateProduct} className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <input
+                type="text"
+                placeholder="Nome do Produto"
+                value={productForm.name}
+                onChange={(e) => setProductForm({ ...productForm, name: e.target.value })}
+                className="px-4 py-2 border rounded"
+                required
+              />
+              <select
+                value={productForm.category}
+                onChange={(e) => setProductForm({ ...productForm, category: e.target.value })}
+                className="px-4 py-2 border rounded"
+                required
+              >
+                <option value="">Selecione uma categoria</option>
+                {categories.map((cat) => (
+                  <option key={cat.id} value={cat.id}>
+                    {cat.name}
+                  </option>
+                ))}
+              </select>
+              <input
+                type="number"
+                step="0.01"
+                placeholder="Preço"
+                value={productForm.price}
+                onChange={(e) => setProductForm({ ...productForm, price: e.target.value })}
+                className="px-4 py-2 border rounded"
+                required
+              />
+              <input
+                type="number"
+                placeholder="Estoque"
+                value={productForm.stock}
+                onChange={(e) => setProductForm({ ...productForm, stock: e.target.value })}
+                className="px-4 py-2 border rounded"
+                required
+              />
+              <textarea
+                placeholder="Descrição"
+                value={productForm.description}
+                onChange={(e) => setProductForm({ ...productForm, description: e.target.value })}
+                className="px-4 py-2 border rounded md:col-span-2"
+                rows="3"
+                required
+              />
+              <button
+                type="submit"
+                className="bg-primary-600 hover:bg-primary-700 text-white px-6 py-2 rounded md:col-span-2"
+              >
+                Adicionar Produto
+              </button>
+            </form>
+          </div>
+
+          <div className="bg-white rounded-lg shadow-md p-6">
+            <h2 className="text-2xl font-bold mb-4">Lista de Produtos</h2>
+            {loading ? (
+              <p>Carregando...</p>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="min-w-full">
+                  <thead>
+                    <tr className="border-b">
+                      <th className="text-left p-2">ID</th>
+                      <th className="text-left p-2">Nome</th>
+                      <th className="text-left p-2">Categoria</th>
+                      <th className="text-left p-2">Preço</th>
+                      <th className="text-left p-2">Estoque</th>
+                      <th className="text-left p-2">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {products.map((product) => (
+                      <tr key={product.id} className="border-b">
+                        <td className="p-2">{product.id}</td>
+                        <td className="p-2">{product.name}</td>
+                        <td className="p-2">{product.category_name}</td>
+                        <td className="p-2">R$ {parseFloat(product.price).toFixed(2)}</td>
+                        <td className="p-2">{product.stock}</td>
+                        <td className="p-2">
+                          <span
+                            className={`px-2 py-1 rounded text-sm ${
+                              product.is_active
+                                ? 'bg-green-100 text-green-800'
+                                : 'bg-red-100 text-red-800'
+                            }`}
+                          >
+                            {product.is_active ? 'Ativo' : 'Inativo'}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'orders' && (
+        <div className="bg-white rounded-lg shadow-md p-6">
+          <h2 className="text-2xl font-bold mb-4">Pedidos</h2>
+          {loading ? (
+            <p>Carregando...</p>
+          ) : (
+            <div className="space-y-4">
+              {orders.map((order) => (
+                <div key={order.id} className="border rounded-lg p-4">
+                  <div className="flex justify-between items-start mb-2">
+                    <div>
+                      <h3 className="font-bold">Pedido #{order.id}</h3>
+                      <p className="text-sm text-gray-600">Cliente: {order.user_name}</p>
+                      <p className="text-sm text-gray-600">Código: {order.pickup_code}</p>
+                    </div>
+                    <div>
+                      <select
+                        value={order.status}
+                        onChange={(e) => handleUpdateOrderStatus(order.id, e.target.value)}
+                        className="px-3 py-1 border rounded"
+                      >
+                        <option value="pending">Pendente</option>
+                        <option value="paid">Pago</option>
+                        <option value="processing">Em Processamento</option>
+                        <option value="ready">Pronto para Retirada</option>
+                        <option value="completed">Concluído</option>
+                        <option value="cancelled">Cancelado</option>
+                      </select>
+                    </div>
+                  </div>
+                  <p className="text-lg font-bold text-primary-600">
+                    Total: R$ {parseFloat(order.total_amount).toFixed(2)}
+                  </p>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default AdminPanel;
